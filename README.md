@@ -2,90 +2,66 @@
 Vietnamese text classification project using machine learning and deep learning models. The system applies text preprocessing, TF-IDF and fastText embeddings, dimensionality reduction, and multiple classifiers (SVM, Logistic Regression, XGBoost, DNN, LSTM) to evaluate performance on multi-class Vietnamese text datasets.
 ---
 
-## Project Summary
-This project presents an end-to-end **Vietnamese text classification system** designed to analyze and compare the performance of traditional machine learning and deep learning approaches on multi-class Vietnamese text datasets.
+## Overview
+This repository implements an end-to-end Vietnamese text classification pipeline that systematically compares traditional machine learning and deep learning approaches under a consistent experimental protocol. The project focuses on Vietnamese-specific preprocessing, feature engineering (sparse and dense representations), class imbalance handling, and reproducible evaluation across multiple model families.
 
-The system covers the complete NLP workflow, including Vietnamese text preprocessing, feature extraction using **TF-IDF and fastText embeddings**, dimensionality reduction, and model training. Multiple classifiers such as **Support Vector Machine (SVM), Logistic Regression, XGBoost, Deep Neural Networks (DNN), and Long Short-Term Memory (LSTM)** are evaluated under a consistent experimental setup.
+## Project Objectives
+- Build a reproducible Vietnamese text classification workflow from raw text to evaluation.
+- Compare feature representations: TF-IDF (word/character n-grams), dimensionality-reduced TF-IDF (SVD), and pretrained embedding-based representations.
+- Benchmark classical machine learning models and neural networks under the same train/test split.
+- Address class imbalance using class weights and sample weighting when applicable.
 
-The project emphasizes **reproducibility, scalability, and practical applicability**, making it suitable for academic research as well as real-world NLP applications.
+## Methodology Summary
+### 1) Vietnamese Text Preprocessing
+- Text normalization and cleaning.
+- Teencode normalization using a custom mapping file.
+- Vietnamese tokenization using PyVi (ViTokenizer).
+- Stopword removal using a configurable stopword list.
+- Robust file reading across common encodings (e.g., utf-16, utf-8-sig).
 
----
+### 2) Data Splitting and Reproducibility
+- Stratified 80/20 train–test split to preserve label distribution.
+- Train/test splits are saved to disk for reproducibility.
 
-## Demo
-*A short demonstration video illustrating the system workflow, training process, and evaluation results will be added here.*
+### 3) Feature Engineering
+A) Sparse representations (TF-IDF / n-grams)
+- Word-level TF-IDF with n-grams.
+- Character-level TF-IDF (for subword patterns).
+- Feature fusion via FeatureUnion (word + char TF-IDF).
 
----
+B) Dimensionality reduction
+- Truncated SVD (e.g., 300 components) applied to TF-IDF spaces to reduce dimensionality, improve efficiency, and enable dense downstream modeling.
 
-## Key Features
-- End-to-end Vietnamese NLP pipeline
-- Robust Vietnamese text preprocessing and normalization
-- TF-IDF and fastText-based feature extraction
-- Dimensionality reduction using Truncated SVD
-- Comparison of multiple machine learning and deep learning models
-- Class imbalance handling with class weighting
-- Reproducible experiments and clean project structure
+C) Dense representations (pretrained embeddings)
+- Word2Vec and fastText pretrained embeddings are used as dense vector representations.
+- Sentence vectors are constructed by aggregating token embeddings (mean pooling).
+- Standardization (StandardScaler) is applied to embedding features before training downstream models.
 
----
+Note: fastText vectors can be distributed in Word2Vec-compatible format and loaded with standard KeyedVectors loaders; in this project, both Word2Vec and fastText embeddings are treated as pretrained word-vector representations for downstream classification.
 
-## Text Preprocessing
-- Text cleaning and normalization
-- Vietnamese word segmentation
-- Stopword removal
-- Handling of encoding issues (`utf-8`, `utf-16`, `utf-8-sig`)
-- Stratified 80/20 train–test split for fair evaluation
-
----
-
-## Feature Engineering
-The project explores different feature representations:
-
-### TF-IDF
-- Word-level TF-IDF
-- N-gram features
-- Sublinear term frequency scaling
-
-### fastText Embeddings
-- Pretrained fastText-style word embeddings
-- Sentence-level vector aggregation
-- Feature normalization and scaling
-
-### Dimensionality Reduction
-- Truncated SVD to reduce high-dimensional sparse features
-- Improved training efficiency and memory usage
-
----
+### 4) Class Imbalance Handling
+- Class weights are computed from the training labels and applied where supported.
+- For XGBoost, balanced training is handled via sample weights.
 
 ## Models Implemented
-
 ### Traditional Machine Learning
-- Support Vector Machine (SVM)
-- Logistic Regression
-- XGBoost
+- SVM with calibrated probabilities over a fused TF-IDF feature space (word + character n-grams).
+- SVM / Logistic Regression on SVD-reduced TF-IDF features.
+- XGBoost on SVD-reduced features.
+- Logistic Regression and Linear SVM on embedding-based features (Word2Vec / fastText representations).
 
 ### Deep Learning
-- Deep Neural Network (DNN)
-- Long Short-Term Memory Network (LSTM)
+- DNN with dense layers and dropout trained on embedding-based features.
+- LSTM-based model trained on embedding-based representations (reshaped for sequential processing).
 
-All models are trained and evaluated using the same data splits to ensure a fair comparison.
+## Evaluation Protocol
+- Primary evaluation is performed on the held-out stratified test set.
+- Classical models are designed to support cross-validation (e.g., StratifiedKFold) for robust estimation; neural networks are trained with validation monitoring (EarlyStopping) to reduce overfitting risk.
+- Classification reports are produced per model; results are aggregated and exported for comparison.
 
----
-
-## Handling Class Imbalance
-To address class imbalance in the dataset:
-- Class weights are automatically computed
-- Balanced training is applied to applicable models
-- Performance is evaluated using consistent metrics
-
----
-
-## Evaluation
-- Accuracy-based comparison across models
-- Detailed classification reports
-- Aggregated experimental results for analysis
-- Visualization of model performance
-
-The results highlight the trade-offs between traditional machine learning and deep learning approaches in Vietnamese text classification.
-
----
+## Outputs
+- `model_results.csv`: aggregated performance summary across models.
+- `model_comparison.png`: visualization for model comparison.
+- `saved_models/`: serialized artifacts (vectorizers, SVD transformers, scalers, trained models).
 
 
