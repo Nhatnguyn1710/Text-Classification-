@@ -36,7 +36,7 @@ import gensim
 from gensim.models import KeyedVectors
 from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.utils.class_weight import compute_sample_weight
-
+from sklearn.utils.class_weight import compute_class_weight
 
 TEENCODE_PATH = r"C:\Users\DELL 15\Downloads\teencode.txt"
 
@@ -50,7 +50,6 @@ except ImportError:
     print("psutil not installed. Install with: pip install psutil")
 
 def check_memory():
-    """Kiểm tra sử dụng bộ nhớ"""
     if HAS_PSUTIL:
         process = psutil.Process(os.getpid())
         mem_info = process.memory_info()
@@ -64,8 +63,8 @@ WORD2VEC_PATH = r"F:\word2vec\vi_word2vec.bin" #fastText pretrained
 print("Loading Word2Vec pretrained...")
 w2v_model = KeyedVectors.load_word2vec_format(
     WORD2VEC_PATH,
-    binary=False,      # file bạn tải là text
-    limit=200000       # tránh treo máy
+    binary=False,      
+    limit=200000       
 )
 print("✅ Word2Vec loaded")
 check_memory()
@@ -74,7 +73,7 @@ check_memory()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ==== DATASET (MERGED) ====
+# ==== DATASET =====
 DATASET_DIR = Path(r"C:\Users\DELL 15\Downloads\dataset").resolve()
 print("Dataset directory:", DATASET_DIR, "| Exists:", DATASET_DIR.exists())
 
@@ -99,15 +98,12 @@ def load_teencode_dict(file_path="teencode.txt"):
                 if not line:
                     continue
 
-                # ƯU TIÊN: file của bạn dùng TAB
                 if '\t' in line:
                     teen, standard = line.split('\t', 1)
 
-                # Dự phòng: nếu sau này có dạng =
                 elif '=' in line:
                     teen, standard = line.split('=', 1)
 
-                # Dự phòng: dạng :
                 elif ':' in line:
                     teen, standard = line.split(':', 1)
 
@@ -130,7 +126,6 @@ def normalize_teencode(text, teencode_dict):
     words = text.split()
     normalized_words = []
     for word in words:
-        # Kiểm tra từng từ và thay thế nếu là teencode
         normalized_word = teencode_dict.get(word.lower(), word)
         normalized_words.append(normalized_word)
     return ' '.join(normalized_words)
@@ -248,7 +243,7 @@ X_data, X_test, y_data, y_test = train_test_split(
 print(f"Train size: {len(X_data)}")
 print(f"Test  size: {len(X_test)}")
 
-# ==== SAVE TRAIN / TEST SPLIT (FOR LOW-RAM MACHINE) ====
+# ==== SAVE TRAIN / TEST SPLIT =====
 SPLIT_DIR = Path("data_split")
 SPLIT_DIR.mkdir(exist_ok=True)
 
@@ -257,7 +252,7 @@ pickle.dump(y_data, open(SPLIT_DIR / "y_train_80.pkl", "wb"))
 pickle.dump(X_test, open(SPLIT_DIR / "X_test_20.pkl", "wb"))
 pickle.dump(y_test, open(SPLIT_DIR / "y_test_20.pkl", "wb"))
 
-print("✅ Saved 80/20 split to disk")
+print("Saved 80/20 split to disk")
 
 # ==== THƯ MỤC LƯU TRỮ ====
 OUTDIR = Path("data")
@@ -296,11 +291,9 @@ X_data, y_data = _clean_corpus(X_data, y_data)
 X_test, y_test = _clean_corpus(X_test, y_test)
 print(f"After  clean | Train: {len(X_data)} docs, Test: {len(X_test)} docs")
 
-# In vd
 for i, s in enumerate(X_data[:2]):
     print(f"[Sample {i}] ->", s[:120].replace("\n", " "), " ...")
 
-# ==== VECTORIZERS ====
 if len(X_data) == 0:
     raise RuntimeError(
         "Dataset trống sau tiền xử lý. Kiểm tra lại đường dẫn & nội dung các file .txt."
@@ -395,7 +388,7 @@ print("Skipping n-gram char features to avoid memory issues...")
 X_data_tfidf_ngram_char = None
 X_test_tfidf_ngram_char = None
 
-# 5) Giảm chiều bằng SVD (300D) 
+# 5)  SVD (300D) 
 print("Creating SVD features...")
 
 svd = load_model_if_exists("svd_transformer")
@@ -459,7 +452,6 @@ X_test_w2v = np.vstack([
 print("Word2Vec feature shape:", X_data_w2v.shape)
 check_memory()
 
-# Scale Word2Vec
 scaler_w2v = StandardScaler()
 X_data_w2v = scaler_w2v.fit_transform(X_data_w2v)
 X_test_w2v = scaler_w2v.transform(X_test_w2v)
@@ -477,8 +469,6 @@ if encoder is None:
 y_data_n = encoder.transform(y_data)
 y_test_n = encoder.transform(y_test)
 print("Classes:", encoder.classes_)
-
-from sklearn.utils.class_weight import compute_class_weight
 
 class_weights = compute_class_weight(
     class_weight="balanced",
@@ -498,7 +488,6 @@ from sklearn.model_selection import train_test_split
 from scipy.sparse import issparse
 
 def train_model(classifier, X_data, y_data, X_test, y_test, is_neuralnet=False, n_epochs=3, model_name=""):
-    # FIX LỖI INDEX: an toàn cho sparse
     if not issparse(X_data):
         X_data = np.asarray(X_data)
     y_data = np.asarray(y_data)
@@ -517,7 +506,7 @@ def train_model(classifier, X_data, y_data, X_test, y_test, is_neuralnet=False, 
         test_acc = metrics.accuracy_score(y_test, test_predictions)
         logger.info(f"Test accuracy (pre-trained): {test_acc:.4f}")
 
-        # IN BẢNG KẾT QUẢ
+        # IN BẢNG 
         print(f"\nClassification Report for {model_name} (pre-trained):")
         print(metrics.classification_report(y_test, test_predictions, target_names=encoder.classes_))
         return test_acc
@@ -525,7 +514,7 @@ def train_model(classifier, X_data, y_data, X_test, y_test, is_neuralnet=False, 
     start_time = datetime.now()
     
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
-    # ===== NEURAL NETWORK: KHÔNG DÙNG CROSS-VALIDATION =====
+
     if is_neuralnet:
         logger.info("Training neural network without cross-validation")
 
@@ -563,7 +552,7 @@ def train_model(classifier, X_data, y_data, X_test, y_test, is_neuralnet=False, 
         y_train = y_data[train_idx]
         y_val   = y_data[val_idx]
 
-        # === XGBOOST: dùng sample_weight để xử lý mất cân bằng ===
+        # === XGBOOST:sample_weight===
         if isinstance(classifier, xgboost.XGBClassifier):
             sw = compute_sample_weight(
                 class_weight="balanced",
@@ -851,14 +840,12 @@ print("\n" + "="*60)
 print("SUMMARY OF RESULTS")
 print("="*60)
 
-# Sắp xếp kết quả theo accuracy
 sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)
 
 print("\nTop performing models:")
 for i, (model_name, accuracy) in enumerate(sorted_results, 1):
     print(f"{i:2d}. {model_name:<25}: {accuracy:.4f}")
 
-# Tìm model tốt nhất
 best_model_name, best_accuracy = sorted_results[0]
 print(f"\n BEST MODEL: {best_model_name} with accuracy: {best_accuracy:.4f}")
 
