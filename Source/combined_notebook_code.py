@@ -296,7 +296,6 @@ for i, s in enumerate(X_data[:2]):
 
 if len(X_data) == 0:
     raise RuntimeError(
-        "Dataset trống sau tiền xử lý. Kiểm tra lại đường dẫn & nội dung các file .txt."
     )
 
 def _is_keras_name(name: str) -> bool:
