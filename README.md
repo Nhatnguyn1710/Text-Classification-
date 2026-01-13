@@ -3,6 +3,8 @@
 
 ## Overview
 This repository implements an end-to-end Vietnamese text classification pipeline that systematically compares traditional machine learning and deep learning approaches under a consistent experimental protocol. The project focuses on Vietnamese-specific preprocessing, feature engineering (sparse and dense representations), class imbalance handling, and reproducible evaluation across multiple model families.
+## Preview
+▶️ [Watch demo video](assets/demo.mp4)
 
 ## Project Objectives
 - Build a reproducible Vietnamese text classification workflow from raw text to evaluation.
