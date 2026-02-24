@@ -2,6 +2,9 @@
 
 A production-style NLP project for Vietnamese text classification, designed with reproducibility, fair model comparison, and leakage-resistant evaluation.
 
+# Preview
+https://github.com/user-attachments/assets/9693b1ff-f77b-4538-8613-52796c8770f0
+
 ## Executive Summary
 This project implements an end-to-end Vietnamese text classification system from raw `.txt` files to final model deployment artifacts.  
 The pipeline combines language-specific preprocessing (teencode normalization, Vietnamese tokenization), multiple feature representations (TF-IDF, SVD, Word2Vec), and both classical ML and deep learning models under a unified evaluation protocol.
