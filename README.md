@@ -1,68 +1,125 @@
-# Vietnamese Text Classification
+# Vietnamese Text Classification Pipeline
+
+A production-style NLP project for Vietnamese text classification, designed with reproducibility, fair model comparison, and leakage-resistant evaluation.
+
+## Executive Summary
+This project implements an end-to-end Vietnamese text classification system from raw `.txt` files to final model deployment artifacts.  
+The pipeline combines language-specific preprocessing (teencode normalization, Vietnamese tokenization), multiple feature representations (TF-IDF, SVD, Word2Vec), and both classical ML and deep learning models under a unified evaluation protocol.
+
+Key strengths:
+- Reproducible train/validation/test workflow
+- Class imbalance handling across model families
+- Cross-validation-aware model selection
+- Final one-shot test evaluation to reduce optimistic bias
+- Exportable artifacts for re-use in downstream services
+
 ---
 
-## Overview
-This repository implements an end-to-end Vietnamese text classification pipeline that systematically compares traditional machine learning and deep learning approaches under a consistent experimental protocol. The project focuses on Vietnamese-specific preprocessing, feature engineering (sparse and dense representations), class imbalance handling, and reproducible evaluation across multiple model families.
-## Preview
-https://github.com/user-attachments/assets/9693b1ff-f77b-4538-8613-52796c8770f0
+## Technical Scope
 
-## Project Objectives
-- Build a reproducible Vietnamese text classification workflow from raw text to evaluation.
-- Compare feature representations: TF-IDF (word/character n-grams), dimensionality-reduced TF-IDF (SVD), and pretrained embedding-based representations.
-- Benchmark classical machine learning models and neural networks under the same train/test split.
-- Address class imbalance using class weights and sample weighting when applicable.
-
-## Methodology Summary
-### 1) Vietnamese Text Preprocessing
-- Text normalization and cleaning.
-- Teencode normalization using a custom mapping file.
-- Vietnamese tokenization using PyVi (ViTokenizer).
-- Stopword removal using a configurable stopword list.
-- Robust file reading across common encodings (e.g., utf-16, utf-8-sig).
+### 1) Vietnamese-Centric Preprocessing
+- Teencode normalization from custom mapping file
+- Text cleaning and normalization via regex rules
+- Vietnamese tokenization with `PyVi (ViTokenizer)`
+- Stopword filtering from configurable dictionary
+- Robust text loading across `utf-16`, `utf-16le`, `utf-8-sig`, `utf-8`
 
 ### 2) Data Splitting and Reproducibility
-- Stratified 80/20 train–test split to preserve label distribution.
-- Train/test splits are saved to disk for reproducibility.
+- Stratified split strategy:
+  - `train`: 64%
+  - `validation`: 16%
+  - `test`: 20%
+- Persisted split files (`X_train.pkl`, `X_val.pkl`, `X_test.pkl`, etc.) for reproducibility
+- Label encoding fitted on training labels with explicit unseen-label checks
 
 ### 3) Feature Engineering
-A) Sparse representations (TF-IDF / n-grams)
-- Word-level TF-IDF with n-grams.
-- Character-level TF-IDF (for subword patterns).
-- Feature fusion via FeatureUnion (word + char TF-IDF).
+- **Sparse text features**
+  - Word-level TF-IDF (`1-2` grams)
+  - Character-level TF-IDF (`3-5` grams) for robust subword patterns
+  - Word+char feature fusion for SVM
+- **Reduced dense text features**
+  - Truncated SVD (`300` components) over TF-IDF
+- **Embedding-based features**
+  - Pretrained Word2Vec-compatible vectors
+  - Sentence vector via mean pooling over token embeddings
 
-B) Dimensionality reduction
-- Truncated SVD (e.g., 300 components) applied to TF-IDF spaces to reduce dimensionality, improve efficiency, and enable dense downstream modeling.
+### 4) Imbalance-Aware Training
+- `class_weight='balanced'` where supported
+- `compute_class_weight` for DNN optimization
+- `compute_sample_weight` for XGBoost training
 
-C) Dense representations (pretrained embeddings)
-- Word2Vec and fastText pretrained embeddings are used as dense vector representations.
-- Sentence vectors are constructed by aggregating token embeddings (mean pooling).
-- Standardization (StandardScaler) is applied to embedding features before training downstream models.
+---
 
-Note: fastText vectors can be distributed in Word2Vec-compatible format and loaded with standard KeyedVectors loaders; in this project, both Word2Vec and fastText embeddings are treated as pretrained word-vector representations for downstream classification.
+## Models Implemented (Final Set: 6)
 
-### 4) Class Imbalance Handling
-- Class weights are computed from the training labels and applied where supported.
-- For XGBoost, balanced training is handled via sample weights.
-
-## Models Implemented
-### Traditional Machine Learning
-- SVM with calibrated probabilities over a fused TF-IDF feature space (word + character n-grams).
-- SVM / Logistic Regression on SVD-reduced TF-IDF features.
-- XGBoost on SVD-reduced features.
-- Logistic Regression and Linear SVM on embedding-based features (Word2Vec / fastText representations).
+### Classical ML
+1. `SVM_TFIDF` (fused word+char TF-IDF with calibrated LinearSVC)
+2. `LR_TFIDF`
+3. `XGB_TFIDF_SVD`
+4. `SVM_WORD2VEC`
 
 ### Deep Learning
-- DNN with dense layers and dropout trained on embedding-based features.
-- LSTM-based model trained on embedding-based representations (reshaped for sequential processing).
+5. `DNN_WORD2VEC`
+6. `DNN_TFIDF_SVD`
 
-## Evaluation Protocol
-- Primary evaluation is performed on the held-out stratified test set.
-- Classical models are designed to support cross-validation (e.g., StratifiedKFold) for robust estimation; neural networks are trained with validation monitoring (EarlyStopping) to reduce overfitting risk.
-- Classification reports are produced per model; results are aggregated and exported for comparison.
+---
 
-## Outputs
-- `model_results.csv`: aggregated performance summary across models.
-- `model_comparison.png`: visualization for model comparison.
-- `saved_models/`: serialized artifacts (vectorizers, SVD transformers, scalers, trained models).
+## Evaluation Protocol (Leakage-Resistant)
+- Classical models: Stratified K-Fold CV on `train+val` (`CV_FOLDS`, default = `10`)
+- CV tracking: mean and standard deviation
+- Model selection score: `cv_mean - cv_std` (performance + stability)
+- Fallback: validation accuracy if CV candidates are unavailable
+- Selected model is retrained on full `train+val`
+- Final performance reported on held-out `test` **once**
 
+This protocol is intentionally designed to improve reliability and reduce overfitting to the test set.
 
+---
+
+## Artifacts Produced
+- `data_split/`: reproducible split files
+- `model_results_validation.csv`: per-model validation/CV metrics
+- `best_model_summary.csv`: final selected model metadata and test score
+- `saved_models/`:
+  - `label_encoder.joblib`
+  - best model file (`.joblib` or `.h5`)
+  - neural preprocessor when required (`*_preprocessor.joblib`)
+    
+---
+## Evaluation Metrics
+To provide a fair and deployment-oriented comparison, we report:
+- **Accuracy**
+- **Macro F1** (primary quality metric under class imbalance)
+- **Weighted F1**
+- **Macro Precision / Macro Recall**
+- **Balanced Accuracy**
+- **MCC (Matthews Correlation Coefficient)**
+- **Cross-validation mean ± std** (for classical models)
+- **Training time, inference latency, and model size**
+
+---
+
+## Engineering Highlights for Recruiters
+- Structured, modular codebase (`Config`, feature transformers, trainers, evaluators)
+- Explicit anti-leakage design in split, selection, and final testing
+- Consistent experiment tracking outputs for reproducibility
+- Balanced treatment of ML and DL approaches under one framework
+- Ready-to-serve saved artifacts for integration into APIs/apps
+
+---
+
+## Configuration
+Environment variables:
+- `DATASET_DIR`
+- `TEENCODE_PATH`
+- `STOPWORDS_PATH`
+- `WORD2VEC_PATH`
+- `MODELS_DIR`
+- `SPLIT_DIR`
+- `CV_FOLDS`
+
+---
+
+## Run
+```bash
+python combined_notebook_code.py
